@@ -1,0 +1,7 @@
+/dist
+.vs
+.git
+bin
+media
+node_modules
+obj
