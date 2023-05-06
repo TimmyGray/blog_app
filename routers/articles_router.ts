@@ -1,9 +1,10 @@
 import { Router,Request } from 'express';
-import multer from 'multer';
+import multer, { memoryStorage } from 'multer';
 import mime from 'mime';
 import { ArticlesController } from '../controllers/articles_controller.js';
 
-const upload = multer({ dest:'media/' });
+const memorystorage = memoryStorage();
+const upload = multer({ storage: memorystorage });
 
 export const articlesRouter: Router = Router();
 const articlesController: ArticlesController = new ArticlesController();

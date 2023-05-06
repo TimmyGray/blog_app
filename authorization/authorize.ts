@@ -1,7 +1,7 @@
 import {Request,Response } from 'express';
 import path from 'path';
 import jwbt from 'jsonwebtoken';
-import { secrettoken, __dirname } from '../app.js';
+import { secrettoken} from '../app.js';
 
 export function checkToken(req, res, next) {
 

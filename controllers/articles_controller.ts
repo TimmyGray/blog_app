@@ -2,11 +2,11 @@ import { Request, Response } from 'express';
 import { MongoClient, Collection, ObjectId, GridFSBucket } from 'mongodb';
 import multer from 'multer';
 import fs from 'fs';
+import stream from 'stream';
 import { Article } from '../models/article.js';
 import { Text } from '../models/text.js';
 import { Imessage } from '../models/Imessage.js';
 import { Media } from '../models/media.js';
-import { count } from 'console';
 
 export class ArticlesController {
 
@@ -144,9 +144,10 @@ export class ArticlesController {
 
             let media = req.file;
             const bucket: GridFSBucket = req.app.locals.mediastorage;
-
-            const id: ObjectId = fs.createReadStream(`./media/${media.filename}`).pipe(bucket.openUploadStream(media.filename, { contentType: media.mimetype })).id;
-            fs.rm(`./media/${media.filename}`, () => { console.log('removed from disk') });
+            const read = new stream.Readable();
+            read.push(media.buffer);
+            const id: ObjectId = read.pipe(bucket.openUploadStream(media.filename, { contentType: media.mimetype })).id;
+            
             article.message = { _id: id };
             console.log(id);
 

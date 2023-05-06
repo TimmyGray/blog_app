@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb";
-import { Imessage } from "./Imessage";
+import { Imessage } from "./Imessage.js";
 
 export class Text implements Imessage {
 
