@@ -5,3 +5,4 @@ bin
 media
 node_modules
 obj
+package-lock.json
