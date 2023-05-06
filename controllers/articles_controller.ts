@@ -204,7 +204,7 @@ export class ArticlesController {
         return res.send({
 
             _id: _id,
-            date: article.data,
+            date: article.date,
             message: article.message,
             username: article.username,
             counts: countdocuments
