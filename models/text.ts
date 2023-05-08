@@ -4,7 +4,8 @@ import { Imessage } from "./Imessage.js";
 export class Text implements Imessage {
 
     constructor(
-        public _id: ObjectId,
-        public text: string) { }
+        public _id: string,
+        public msgvalue: string,
+        public type:string) { }
 
 }

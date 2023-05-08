@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import { MongoClient, Collection, ObjectId, GridFSBucket } from 'mongodb';
 import multer from 'multer';
-import fs from 'fs';
-import stream from 'stream';
+import fs, { createReadStream } from 'fs';
+import { Readable } from 'stream';
 import { Article } from '../models/article.js';
 import { Text } from '../models/text.js';
 import { Imessage } from '../models/Imessage.js';
@@ -47,10 +47,10 @@ export class ArticlesController {
     async getArticles(req: Request, res: Response) {
 
         console.info('Get Articles');
-
+       
         const collection: Collection = req.app.locals.articlescollection;
         const page = parseInt(req.params.page);
-        const countonpage = 10;
+        const countonpage = 20;
         let countdocuments: number = 0;
         
         await collection.countDocuments({})
@@ -85,7 +85,7 @@ export class ArticlesController {
             .then((data) => {
 
                 console.log(data);
-
+                
                 return res.send({
                     articles: data,
                     counts: countdocuments
@@ -104,16 +104,15 @@ export class ArticlesController {
     async getMedia(req: Request, res: Response) {
 
         console.info('Get Medias');
+        if (!req.params) {
+            console.error('Empty body');
+            return res.status(400).send('Empty body');
+        }
+        const id: ObjectId = new ObjectId(req.params._id);
+        console.info(id);
 
         const collection: GridFSBucket = req.app.locals.mediastorage;
-        const medias = await collection.find({}).toArray();
-        for (let media of medias) {
-            res.emit('finish');
-            res.on('finish', () => {
-                collection.openDownloadStream(media._id).pipe(res);
-            })
-
-        }
+        collection.openDownloadStream(id).pipe(res);
 
     }
 
@@ -128,31 +127,38 @@ export class ArticlesController {
 
         }
 
-        const article: Article = new Article(new Date(), null, req.body.username);
+        let article: Article = new Article(new Date(), JSON.parse(req.body.message), req.body.username);
         const collection: Collection = req.app.locals.articlescollection;
-
-        if (req.body.message) {
-
-            console.info('No file in request');
-            article.message = req.body.message;
-
-        }
+        
 
         if (req.file) {
 
             console.info('Upload file');
 
             let media = req.file;
+            let type = media.mimetype.split('/');
+            let name = media.originalname.split('.');
+            let filename='';
+            for (let i = 0; i < name.length - 1; i++) {
+                filename = filename + name[i] + '.';
+            }
             const bucket: GridFSBucket = req.app.locals.mediastorage;
-            const read = new stream.Readable();
+            const read = new Readable();
             read.push(media.buffer);
-            const id: ObjectId = read.pipe(bucket.openUploadStream(media.filename, { contentType: media.mimetype })).id;
-            
-            article.message = { _id: id };
+            read.push(null);
+
+            const id: ObjectId = read.pipe(bucket.openUploadStream(filename, { contentType: media.mimetype })).id;
+
+            article.message = { _id: id, msgvalue: media.originalname, type: type[0] };
             console.log(id);
 
         }
+        else {
+            console.info('No file in request');
+            article.message = { _id: '', msgvalue: article.message.msgvalue, type: article.message.type };
+        }
 
+        
 
         let _id;
 
@@ -170,7 +176,7 @@ export class ArticlesController {
 
             });
 
-        const countonpage = 10;
+        const countonpage = 20;
         let countdocuments: number = 0;
 
         await collection.countDocuments({})
@@ -218,9 +224,50 @@ export class ArticlesController {
 
     }
 
-    deleteArticle(req: Request, res: Response) {
+    async deleteArticle(req: Request, res: Response) {
 
+        console.info('Delete Article');
 
+        if (!req.body) {
+
+            console.error('Empty body');
+            return res.status(400).send('Empty body');
+
+        }
+
+        const collection: Collection = req.app.locals.articlescollection;
+        const bucket: GridFSBucket = req.app.locals.mediastorage;
+        const id: ObjectId = new ObjectId(req.params._id);
+
+        const ismedia: boolean = false;
+        let article;
+
+        await collection.findOne({ _id: id }).then(data => {
+
+            article = data;
+
+        }).catch ((e) => {
+            console.error(e);
+            res.status(500).send("Error when get article");
+        });
+
+        collection.findOneAndDelete({ _id: id }).catch((e) => {
+            console.error(e);
+            res.status(500).send("Error when delete article");
+        });
+
+        await bucket.delete(article.message._id).then(() => {
+
+            res.send('Successful delete media');
+
+        }).catch(() => {
+
+            console.info('No media');
+        }).then(() => {
+
+            res.send('Delete without media');
+        })
+       
     }
 
     
