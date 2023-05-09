@@ -140,7 +140,7 @@ export class ArticlesController {
             let name = media.originalname.split('.');
             let filename='';
             for (let i = 0; i < name.length - 1; i++) {
-                filename = filename + name[i] + '.';
+                filename = filename + name[i];
             }
             const bucket: GridFSBucket = req.app.locals.mediastorage;
             const read = new Readable();
@@ -242,31 +242,47 @@ export class ArticlesController {
         const ismedia: boolean = false;
         let article;
 
-        await collection.findOne({ _id: id }).then(data => {
+        collection.findOne({ _id: id })
+            .then(value => {
+                return article = value;
+            })
+            .then(value => collection.findOneAndDelete({ _id: value._id }))
+            .then(value => bucket.delete(article.message._id))
+            .then(() => {
 
-            article = data;
+                res.send('Successful delete');
 
-        }).catch ((e) => {
-            console.error(e);
-            res.status(500).send("Error when get article");
-        });
+            })
+            .catch(e => {
+                console.error(e);
+                res.status(500).send('Error when delete');
+            })
 
-        collection.findOneAndDelete({ _id: id }).catch((e) => {
-            console.error(e);
-            res.status(500).send("Error when delete article");
-        });
+        //await collection.findOne({ _id: id }).then(data => {
 
-        await bucket.delete(article.message._id).then(() => {
+        //    article = data;
 
-            res.send('Successful delete media');
+        //}).catch ((e) => {
+        //    console.error(e);
+        //    res.status(500).send("Error when get article");
+        //});
 
-        }).catch(() => {
+        //collection.findOneAndDelete({ _id: id }).catch((e) => {
+        //    console.error(e);
+        //    res.status(500).send("Error when delete article");
+        //});
 
-            console.info('No media');
-        }).then(() => {
+        //await bucket.delete(article.message._id).then(() => {
 
-            res.send('Delete without media');
-        })
+        //    res.send('Successful delete media');
+
+        //}).catch(() => {
+
+        //    console.info('No media');
+        //}).then(() => {
+
+        //    res.send('Delete without media');
+        //})
        
     }
 

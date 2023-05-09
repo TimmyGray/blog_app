@@ -43,7 +43,7 @@ await mongoclient.connect()
         console.info('Connection established');
         app.locals.userscollection = client.db('blogsdb').collection('users');
         app.locals.articlescollection = client.db('blogsdb').collection('articles');
-        app.locals.mediastorage = new mongodb.GridFSBucket(client.db('blogsdb'), { bucketName: 'mediastorage' });
+        app.locals.mediastorage = new mongodb.GridFSBucket(client.db('blogsdb'), { bucketName: 'mediastorage', chunkSizeBytes:16*1024 });
 
     })
     .catch((e: Error) => {
