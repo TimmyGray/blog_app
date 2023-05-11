@@ -19,11 +19,16 @@ const { CONNECTION_STRINGS } = process.env;
 const { CLIENT_URL } = process.env; 
 const { PORT } = process.env;
 const { SECRET_TOKEN } = process.env;
+const { isCloudary } = process.env;
+const { CLOUDINARY_URL } = process.env;
 
 const connectionstring: string = process.env.CONNECTION_STRINGS || CONNECTION_STRINGS || "mongodb://127.0.0.1:12908";
 const port = process.env.PORT || PORT || 3200;
 const clienturl = process.env.CLIENT_URL || CLIENT_URL || "http://localhost:4200";
-export const secrettoken = process.env.SECRET_TOKEN || SECRET_TOKEN|| 'themostsecrettokenintheworld';
+export const secrettoken = process.env.SECRET_TOKEN || SECRET_TOKEN || 'themostsecrettokenintheworld';
+export const iscloudary = process.env.isCloudary || isCloudary || 0;
+export const cloudaryurl = process.env.CLOUDARY_URL || CLOUDINARY_URL;
+
 
 const mongoclient: MongoClient = new mongodb.MongoClient(connectionstring);
 

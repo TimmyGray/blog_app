@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { MongoClient, Collection, ObjectId, GridFSBucket } from 'mongodb';
+import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
 import fs, { createReadStream } from 'fs';
 import { Readable } from 'stream';
@@ -7,42 +8,10 @@ import { Article } from '../models/article.js';
 import { Text } from '../models/text.js';
 import { Imessage } from '../models/Imessage.js';
 import { Media } from '../models/media.js';
+import { iscloudary } from '../app.js';
+import { error } from 'console';
 
 export class ArticlesController {
-
-    //async countOfDocuments(collection: Collection, countonpage: number): Promise<number> {
-
-    //    let countdocuments: number = 0;
-    //    await collection.countDocuments({})
-    //        .then(data => {
-
-    //            if (data % countonpage == 0) {
-
-    //                countdocuments = data / countonpage;
-
-    //            }
-    //            else {
-    //                let rounddata: number = Math.round(data / countonpage);
-    //                if (rounddata > data / countonpage) {
-
-    //                    countdocuments = rounddata;
-
-    //                }
-    //                else {
-    //                    countdocuments = rounddata + 1;
-    //                }
-
-    //            }
-    //        })
-    //        .catch((e: Error) => {
-
-    //            return console.error(e);
-                 
-
-    //        });
-
-    //    return countdocuments;
-    //}
 
     async getArticles(req: Request, res: Response) {
 
@@ -108,11 +77,24 @@ export class ArticlesController {
             console.error('Empty body');
             return res.status(400).send('Empty body');
         }
+
+        
         const id: ObjectId = new ObjectId(req.params._id);
         console.info(id);
-
+        
         const collection: GridFSBucket = req.app.locals.mediastorage;
-        collection.openDownloadStream(id).pipe(res);
+        res.setHeader('accept-range', 'bytes');
+        collection.openDownloadStream(id).on('data', (chank) => {
+            res.write(chank);
+        }).on('error', (e) => {
+
+            console.log(e);
+            res.status(404);
+
+        }).on('end', () => {
+
+            res.end();
+        })
 
     }
 
@@ -123,9 +105,11 @@ export class ArticlesController {
         if (!req.body) {
 
             console.error('Empty body');
-            return res.status(400).send('Empty body');
+            return res.status(400);
 
         }
+
+ 
 
         let article: Article = new Article(new Date(), JSON.parse(req.body.message), req.body.username);
         const collection: Collection = req.app.locals.articlescollection;
@@ -147,15 +131,19 @@ export class ArticlesController {
             read.push(media.buffer);
             read.push(null);
 
-            const id: ObjectId = read.pipe(bucket.openUploadStream(filename, { contentType: media.mimetype })).id;
+            const id: ObjectId = read.pipe(bucket.openUploadStream(media.originalname, { contentType: media.mimetype })).id;
 
             article.message = { _id: id, msgvalue: media.originalname, type: type[0] };
             console.log(id);
 
         }
         else {
-            console.info('No file in request');
-            article.message = { _id: '', msgvalue: article.message.msgvalue, type: article.message.type };
+
+            if (iscloudary=='0') {
+                console.info('No file in request');
+                article.message = { _id: '', msgvalue: article.message.msgvalue, type: article.message.type };
+
+            }
         }
 
         
@@ -221,7 +209,57 @@ export class ArticlesController {
 
     putArticle(req: Request, res: Response) {
 
+        if (!req.body) {
+            console.error('Empty body');
+            res.status(400).send('Empty body');
+        }
 
+        let article: Article = new Article(new Date, JSON.parse(req.body.message), req.body.username);
+        const id: ObjectId = new ObjectId(req.body._id);
+        const collection: Collection = req.app.locals.articlescollection;
+        const bucket: GridFSBucket = req.app.locals.mediastorage;
+
+        if (req.file) {
+
+            let media = req.file;
+            let type = media.mimetype.split('/');
+            let name = media.originalname.split('.');
+            let filename = '';
+            for (let i = 0; i < name.length - 1; i++) {
+                filename = filename + name[i];
+            }
+            let read = new Readable();
+            read.push(media.buffer);
+            read.push(null);
+
+            bucket.delete(article.message._id as ObjectId);
+            const id: ObjectId = read.pipe(bucket.openUploadStream(filename, { contentType: media.mimetype })).id;
+
+            article.message = { _id: id, msgvalue: media.originalname, type: type[0] };
+            console.log(id);
+           
+
+        } else {
+
+            if (iscloudary=='0') {
+
+                console.info('No file in request');
+                article.message = { _id: '', msgvalue: article.message.msgvalue, type: article.message.type };
+
+            }
+
+        }
+
+        collection.findOneAndReplace({ _id: id }, article, { returnDocument: 'after' })
+            .then(data => {
+                console.log(data.value);
+                return res.send(data.value);
+            })
+            .catch(e => {
+                console.log(e);
+                return res.status(500).send("Error when update");
+            });
+            
     }
 
     async deleteArticle(req: Request, res: Response) {
@@ -257,32 +295,6 @@ export class ArticlesController {
                 console.error(e);
                 res.status(500).send('Error when delete');
             })
-
-        //await collection.findOne({ _id: id }).then(data => {
-
-        //    article = data;
-
-        //}).catch ((e) => {
-        //    console.error(e);
-        //    res.status(500).send("Error when get article");
-        //});
-
-        //collection.findOneAndDelete({ _id: id }).catch((e) => {
-        //    console.error(e);
-        //    res.status(500).send("Error when delete article");
-        //});
-
-        //await bucket.delete(article.message._id).then(() => {
-
-        //    res.send('Successful delete media');
-
-        //}).catch(() => {
-
-        //    console.info('No media');
-        //}).then(() => {
-
-        //    res.send('Delete without media');
-        //})
        
     }
 
