@@ -207,7 +207,9 @@ export class ArticlesController {
 
     }
 
-    putArticle(req: Request, res: Response) {
+    async putArticle(req: Request, res: Response) {
+
+        console.info('Edit article');
 
         if (!req.body) {
             console.error('Empty body');
@@ -218,9 +220,19 @@ export class ArticlesController {
         const id: ObjectId = new ObjectId(req.body._id);
         const collection: Collection = req.app.locals.articlescollection;
         const bucket: GridFSBucket = req.app.locals.mediastorage;
+        //await collection.findOne({ _id: id })
+        //    .then(data => {
+        //        if (data == null) {
+        //            res.status(204).send('This article does not exist');
+        //        }
+        //    }).catch(e => {
+        //        console.error(e);
+        //        res.status(400).send('Error when check for exist');
+        //    });
 
         if (req.file) {
 
+            console.log('article with media');
             let media = req.file;
             let type = media.mimetype.split('/');
             let name = media.originalname.split('.');
@@ -232,8 +244,12 @@ export class ArticlesController {
             read.push(media.buffer);
             read.push(null);
 
-            bucket.delete(article.message._id as ObjectId);
-            const id: ObjectId = read.pipe(bucket.openUploadStream(filename, { contentType: media.mimetype })).id;
+            bucket.delete(new ObjectId(article.message._id))
+                .catch(e => {
+                    console.error(e);
+                    return res.status(204).send('File not found');
+                });
+            const id: ObjectId = read.pipe(bucket.openUploadStream(media.originalname, { contentType: media.mimetype })).id;
 
             article.message = { _id: id, msgvalue: media.originalname, type: type[0] };
             console.log(id);
@@ -241,16 +257,12 @@ export class ArticlesController {
 
         } else {
 
-            if (iscloudary=='0') {
-
-                console.info('No file in request');
-                article.message = { _id: '', msgvalue: article.message.msgvalue, type: article.message.type };
-
-            }
+            console.info('No file in request');
+            article.message = { _id: '', msgvalue: article.message.msgvalue, type: article.message.type };
 
         }
 
-        collection.findOneAndReplace({ _id: id }, article, { returnDocument: 'after' })
+        collection.findOneAndUpdate({ _id: id, }, { $set: { message: article.message } }, { returnDocument: 'after' })
             .then(data => {
                 console.log(data.value);
                 return res.send(data.value);
@@ -285,15 +297,23 @@ export class ArticlesController {
                 return article = value;
             })
             .then(value => collection.findOneAndDelete({ _id: value._id }))
-            .then(value => bucket.delete(article.message._id))
+            .then(value => {
+                if (value.value.message._id != '') {
+                    bucket.delete(value.value.message._id);
+                }
+                else {
+                    console.log('File without media');
+                }
+            })
             .then(() => {
 
-                res.send('Successful delete');
+                console.log('successful delete');
+                return res.send({message:'Succesful delete'});
 
             })
             .catch(e => {
                 console.error(e);
-                res.status(500).send('Error when delete');
+                return res.status(500).send('Error when delete');
             })
        
     }
